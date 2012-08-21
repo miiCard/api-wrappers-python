@@ -27,6 +27,9 @@ Then make calls against it simply:
     
     user_first_name = user_profile_response.data.first_name
 
+##Dependencies
+The library takes a dependency on simplegeo-oauth2, but uses a patched version of it to correct a few issues.
+
 ##Contributing
 * Use GitHub issue tracking to report bugs in the library
 * If you're going to submit a patch, please base it off the development branch - the master reflects the latest version published to PyPI but may not necessarily be bleeding-edge
