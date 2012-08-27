@@ -1,13 +1,9 @@
 language: python
 python:
- - "2.5"
- - "2.6"
  - "2.7"
- - "3.2"
 install:
  - "pip install oauth2"
  - "pip install httplib2"
- - "pip install json"
  - "pip install urllib"
 script:
  - python MiiCardConsumers\test\__init__.py
