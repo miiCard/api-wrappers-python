@@ -4,7 +4,6 @@ python:
 install:
  - "pip install oauth2"
  - "pip install httplib2"
- - "pip install urllib"
 script:
  - python MiiCardConsumers\test\__init__.py
 notifications:
