@@ -5,6 +5,6 @@ install:
  - "pip install oauth2"
  - "pip install httplib2"
 script:
- - python MiiCardConsumers\test\__init__.py
+ - python MiiCardConsumers/test/__init__.py
 notifications:
   email: false
