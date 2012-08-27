@@ -11,3 +11,5 @@ install:
  - "pip install urllib"
 script:
  - python MiiCardConsumers\test\__init__.py
+notifications:
+  email: false
