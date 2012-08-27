@@ -4,10 +4,14 @@ import oauth2 as oauth
 import urllib
 
 class Claim(object):
+    """Base class for verifiable information returned by the miiCard Claims API."""
+
     def __init__(self, verified):
         self.verified = verified
 
 class Identity(Claim):
+    """Represents the user's account details on another website, such as a social media site"""
+
     def __init__(self, verified, source, user_id, profile_url):
         super(Identity, self).__init__(verified)
 
@@ -17,6 +21,8 @@ class Identity(Claim):
 
     @staticmethod
     def FromDict(dict):
+        """Builds and returns an Identity object from a dictionary of parameters"""
+
         return Identity(
                         dict.get('Verified', None),
                         dict.get('Source', None),
@@ -25,6 +31,8 @@ class Identity(Claim):
                         )
 
 class EmailAddress(Claim):
+    """Represents an email address that the user has linked to their miiCard profile"""
+
     def __init__(self, verified, display_name, address, is_primary):
         super(EmailAddress, self).__init__(verified)
 
@@ -34,6 +42,8 @@ class EmailAddress(Claim):
 
     @staticmethod
     def FromDict(dict):
+        """Builds and returns an EmailAddress object from a dictionary of parameters"""
+
         return EmailAddress(
                             dict.get('Verified', None),
                             dict.get('DisplayName', None),
@@ -42,6 +52,8 @@ class EmailAddress(Claim):
                             )
 
 class PhoneNumber(Claim):
+    """Represents a phone number that the user has linked to their miiCard profile"""
+
     def __init__(self, verified, display_name, country_code, national_number, is_mobile, is_primary):
         super(PhoneNumber, self).__init__(verified)
         
@@ -53,6 +65,8 @@ class PhoneNumber(Claim):
 
     @staticmethod
     def FromDict(dict):
+        """Builds and returns a PhoneNumber object from a dictionary of parameters"""
+
         return PhoneNumber(
                            dict.get('Verified', None),
                            dict.get('DisplayName', None),
@@ -63,6 +77,8 @@ class PhoneNumber(Claim):
                            )
 
 class PostalAddress(Claim):
+    """Represents a postal address that the user has linked to their miiCard profile"""
+
     def __init__(self, verified, house, line1, line2, city, region, code, country, is_primary):
         super(PostalAddress, self).__init__(verified)
 
@@ -77,6 +93,8 @@ class PostalAddress(Claim):
 
     @staticmethod
     def FromDict(dict):
+        """Builds and returns a PostalAddress object from a dictionary of parameters"""
+
         return PostalAddress(
                              dict.get('Verified', None),
                              dict.get('House', None),
@@ -90,6 +108,8 @@ class PostalAddress(Claim):
                              )
 
 class WebProperty(Claim):
+    """Represents a web property such as a domain or website over which the user has demonstrated ownership"""
+
     def __init__(self, verified, display_name, identifier, type):
         super(WebProperty, self).__init__(verified)
 
@@ -99,6 +119,8 @@ class WebProperty(Claim):
 
     @staticmethod
     def FromDict(dict):
+        """Builds and returns a WebProperty object from a dictionary of parameters"""        
+        
         return WebProperty(
                            dict.get('Verified', None),
                            dict.get('DisplayName', None),
@@ -107,10 +129,16 @@ class WebProperty(Claim):
                            )
 
 class WebPropertyType(object):
-    domain = 0
-    website = 1
+    """Enumerates possible kinds of WebProperty, used by the WebProperty.type field"""
+
+    """Indicates that the WebProperty relates to a domain name"""
+    DOMAIN = 0
+    """Indicates that the WebProperty relates to a website"""
+    WEBSITE = 1
 
 class MiiUserProfile(object):
+    """Represents the subset of a miiCard user's identity that they have agreed to share"""
+
     def __init__(
                  self, 
                  username,
@@ -158,6 +186,8 @@ class MiiUserProfile(object):
 
     @staticmethod
     def FromDict(dict):
+        """Builds and returns a MiiUserProfile object from a dictionary of parameters"""
+
         emails = dict.get('EmailAddresses', None)
         phone_numbers = dict.get('PhoneNumbers', None)
         postal_addresses = dict.get('PostalAddresses', None)
@@ -229,17 +259,26 @@ class MiiUserProfile(object):
                               )
 
 class MiiApiCallStatus(object):
-    success = 0
-    failure = 1
+    """Enumeration describing the overall status of an API call"""
+
+    SUCCESS = 0
+    FAILURE = 1
 
 class MiiApiErrorCode(object):
-    success = 0
-    access_revoked = 100,
-    user_subscription_lapsed = 200,
-    exception = 10000
+    """Enumeration describing the specific problem that occurred when accessing the API, if any"""
+
+    SUCCESS = 0
+    ACCESS_REVOKED = 100,
+    USER_SUBSCRIPTION_LAPSED = 200,
+    EXCEPTION = 10000
 
 class MiiApiResponse(object):
-    def __init__(self, status, error_code, error_message, data,):
+    """
+    A wrapper around responses from API calls detailing success or failure of the call and
+    the payload of the response itself
+    """
+
+    def __init__(self, status, error_code, error_message, data):
         self.status = status
         self.error_code = error_code
         self.error_message = error_message
@@ -247,6 +286,11 @@ class MiiApiResponse(object):
 
     @staticmethod
     def FromDict(dict, data_processor):
+        """
+        Builds and returns a MiiApiResponse object from a dictionary of parameters, parsing the parameters into a Python
+        object using the data_processor callback if one is supplied
+        """
+
         payload_json = dict.get('Data')
 
         if payload_json and data_processor:
@@ -257,24 +301,36 @@ class MiiApiResponse(object):
             payload = None
 
         return MiiApiResponse(
-                              dict.get('Status', MiiApiCallStatus.success),
-                              dict.get('ErrorCode', MiiApiErrorCode.success),
+                              dict.get('Status', MiiApiCallStatus.SUCCESS),
+                              dict.get('ErrorCode', MiiApiErrorCode.SUCCESS),
                               dict.get('ErrorMessage', None),
                               payload
                               )
 
 class MiiCardOAuthServiceBase(object):
+    """Base class of OAuth wrappers around miiCard APIs"""
+
     def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret):
+        if consumer_key is None or consumer_secret is None or access_token is None or access_token_secret is None:
+            raise ValueError
+        
         self.consumer_key = consumer_key;
         self.consumer_secret = consumer_secret;
         self.access_token = access_token;
         self.access_token_secret = access_token_secret;
 
 class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
+    """Wrapper around the miiCard Claims API v1"""    
+
     def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret):
         super(MiiCardOAuthClaimsService, self).__init__(consumer_key, consumer_secret, access_token, access_token_secret)
 
     def get_claims(self):
+        """
+        Returns a subset of the miiCard user's identity as agreed by the user, as a MiiApiResponse object whose data field
+        is populated with a MiiUserProfile object
+        """
+
         return self._make_request(
                                   MiiCardServiceUrls.get_method_url('GetClaims'),
                                   None,
@@ -282,6 +338,11 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   )
 
     def is_social_account_assured(self, social_account_id, social_account_type):
+        """
+        Returns whether the miiCard user has verified ownership of a particular social network account as a MiiApiResponse
+        object whose data field is populated with a boolean
+        """
+
         post_params = json.dumps({"socialAccountId": social_account_id, "socialAccountType": social_account_type})
 
         return self._make_request(
@@ -291,6 +352,11 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   )
 
     def is_user_assured(self):
+        """
+        Returns whether the miiCard user's identity has been assured to the level of assurance required by your developer profile 
+        as a MiiApiResponse object whose data field is populated with a boolean
+        """
+
         return self._make_request(
                                   MiiCardServiceUrls.get_method_url('IsUserAssured'),
                                   None,
@@ -298,6 +364,11 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   )
     
     def assurance_image(self, type):
+        """
+        Returns an image representation of the identity assurance level of a user in a specified format, returning the
+        PNG content of the image
+        """
+
         post_params = json.dumps({"type": type})
 
         return self._make_request(
@@ -332,12 +403,14 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
             return content
 
 class MiiCardServiceUrls(object):
-    oauth_endpoint = "https://sts.miicard.com/auth/OAuth.ashx"
-    claims_svc = "https://sts.miicard.com/api/v1/Claims.svc/json"
+    OAUTH_ENDPOINT = "https://sts.miicard.com/auth/OAuth.ashx"
+    CLAIMS_SVC = "https://sts.miicard.com/api/v1/Claims.svc/json"
 
     @staticmethod
     def get_method_url(method_name):
-        return MiiCardServiceUrls.claims_svc + "/" + method_name
+        """Gets the JSON API endpoint URL for a given method name"""
+
+        return MiiCardServiceUrls.CLAIMS_SVC + "/" + method_name
 
 # Fixup for simplegeo OAuth bug
 class OAuthClient(oauth.Client):
