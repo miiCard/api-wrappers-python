@@ -2,11 +2,9 @@ language: python
 python:
  - "2.7"
 install:
- - "pip install oauth2"
- - "pip install httplib2"
-script:
  - python setup.py sdist --formats=zip -k
  - find . -iname "*.zip" -print0 | xargs -0 pip install
+script:
  - python MiiCardConsumers/test/__init__.py
 notifications:
   email: false
