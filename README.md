@@ -5,6 +5,8 @@ Python wrapper classes around the miiCard API.
 
 This repository houses the source for the latest version of the miiCard Consumers library available on PyPI.
 
+See http://www.miicard.com/developers for more information.
+
 ##What is miiCard
 miiCard lets anybody prove their identity to the same level of traceability as using a passport, driver's licence or photo ID. We then allow external web applications to ask miiCard users to share a portion of their identity information with the application through a web-accessible API.
 

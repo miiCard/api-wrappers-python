@@ -10,6 +10,8 @@ Python wrapper classes around the miiCard API.
 This repository houses the source for the latest version of the miiCard 
 Consumers library available on PyPI. 
 
+See http://www.miicard.com/developers for more information.
+
 
 What is miiCard
 ===============

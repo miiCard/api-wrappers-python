@@ -11,6 +11,6 @@ setup(
     description='Wrapper around the miiCard API.',
     long_description=open('README.txt').read(),
     install_requires=[        
-        "oauth2 >= 1.5.211"
+        "oauth2 == 1.5.211"
     ],
 )
