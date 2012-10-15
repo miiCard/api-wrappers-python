@@ -35,7 +35,7 @@ The library takes a dependency on simplegeo-oauth2, but uses a patched version o
 ##Contributing
 * Use GitHub issue tracking to report bugs in the library
 * If you're going to submit a patch, please base it off the development branch - the master reflects the latest version published to PyPI but may not necessarily be bleeding-edge
-* Join the [miiCard.com developer forums](http://www.miicard.com/developers) to keep up to date with the latest releases and planned changes
+* Join the [miiCard.com developer forums](http://devforum.miicard.com) to keep up to date with the latest releases and planned changes
 
 ##Licence
 Copyright (c) 2012, miiCard Limited All rights reserved.
