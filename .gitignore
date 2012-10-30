@@ -29,3 +29,4 @@ pip-log.txt
 # Visual studio
 *.pyproj
 *.vspscc
+*.suo

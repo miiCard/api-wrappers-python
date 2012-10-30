@@ -3,6 +3,16 @@ import httplib2
 import oauth2 as oauth
 import urllib
 
+class MiiCardServiceUrls(object):
+    OAUTH_ENDPOINT = "https://stsbeta.miicard.com/auth/OAuth.ashx"
+    CLAIMS_SVC = "https://stsbeta.miicard.com/api/v1/Claims.svc/json"
+
+    @staticmethod
+    def get_method_url(method_name):
+        """Gets the JSON API endpoint URL for a given method name"""
+
+        return MiiCardServiceUrls.CLAIMS_SVC + "/" + method_name
+
 class Claim(object):
     """Base class for verifiable information returned by the miiCard Claims API."""
 
@@ -270,6 +280,9 @@ class MiiApiErrorCode(object):
     SUCCESS = 0
     ACCESS_REVOKED = 100,
     USER_SUBSCRIPTION_LAPSED = 200,
+    TRANSACTIONAL_SUPPORT_DISABLED = 1000,
+    DEVELOPMENT_TRANSACTIONAL_SUPPORT_ONLY = 1010,
+    INVALID_SNAPSHOT_ID = 1020,
     EXCEPTION = 10000
 
 class MiiApiResponse(object):
@@ -278,14 +291,15 @@ class MiiApiResponse(object):
     the payload of the response itself
     """
 
-    def __init__(self, status, error_code, error_message, data):
+    def __init__(self, status, error_code, error_message, is_test_user, data):
         self.status = status
         self.error_code = error_code
         self.error_message = error_message
+        self.is_test_user = is_test_user
         self.data = data
 
     @staticmethod
-    def FromDict(dict, data_processor):
+    def FromDict(dict, data_processor, is_array_payload = False):
         """
         Builds and returns a MiiApiResponse object from a dictionary of parameters, parsing the parameters into a Python
         object using the data_processor callback if one is supplied
@@ -294,7 +308,12 @@ class MiiApiResponse(object):
         payload_json = dict.get('Data')
 
         if payload_json and data_processor:
-            payload = data_processor(payload_json)
+            if is_array_payload:
+                payload = []
+                for payload_entry in payload_json:
+                    payload.append(data_processor(payload_entry))
+            else:
+                payload = data_processor(payload_json)
         elif payload_json is not None:
             payload = payload_json
         else:
@@ -304,8 +323,53 @@ class MiiApiResponse(object):
                               dict.get('Status', MiiApiCallStatus.SUCCESS),
                               dict.get('ErrorCode', MiiApiErrorCode.SUCCESS),
                               dict.get('ErrorMessage', None),
+                              dict.get('IsTestUser', False),
                               payload
                               )
+
+class IdentitySnapshotDetails(object):
+    """
+    Represents details about a single identity snapshot - a point-in-time representation of a miiCard
+    member's identity information.
+    """
+
+    def __init__(self, snapshot_id, username, timestamp_utc, was_test_user):
+        self.snapshot_id = snapshot_id
+        self.username = username
+        self.timestamp_utc = timestamp_utc
+        self.was_test_user = was_test_user
+
+    @staticmethod
+    def FromDict(dict):
+        """
+        Builds and returns an IdentitySnapshotDetails object from a dictionary of parameters
+        """
+
+        return IdentitySnapshotDetails(
+                                       dict.get('SnapshotId', None),
+                                       dict.get('Username', None),
+                                       dict.get('TimestampUtc', None),
+                                       dict.get('WasTestUser', False)
+                                       )
+
+class IdentitySnapshot(object):
+    """
+    Represents a point-in-time snapshot of a miiCard member's identity
+    """
+
+    def __init__(self, details, snapshot):
+        self.details = details
+        self.snapshot = snapshot
+
+    @staticmethod
+    def FromDict(dict):
+        """
+        Builds and returns an IdentitySnapshot object from a dictionary of parameters
+        """
+        return IdentitySnapshot(
+                                IdentitySnapshotDetails.FromDict(dict.get('Details')),
+                                MiiUserProfile.FromDict(dict.get('Snapshot'))
+                               )
 
 class MiiCardOAuthServiceBase(object):
     """Base class of OAuth wrappers around miiCard APIs"""
@@ -378,7 +442,49 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   wrapped_response = False
                                   )
 
-    def _make_request(self, url, post_data, payload_processor, wrapped_response = True):
+    def create_identity_snapshot(self):
+        """
+        Creates a point-in-time snapshot of the miiCard member's identity information, returning metadata about that
+        snapshot for subsequent retrieval
+        """
+
+        return self._make_request(
+                                  MiiCardServiceUrls.get_method_url('CreateIdentitySnapshot'),
+                                  None,
+                                  IdentitySnapshotDetails.FromDict
+                                  )
+
+    def get_identity_snapshot_details(self, snapshot_id = None):
+        """
+        Gets details of a snapshot identified by its ID, or of all snapshots for the miiCard member if
+        not supplied.
+        """
+
+        post_params = json.dumps({"snapshotId": snapshot_id})
+
+        return self._make_request(
+                                  MiiCardServiceUrls.get_method_url('GetIdentitySnapshotDetails'),
+                                  post_params,
+                                  IdentitySnapshotDetails.FromDict,
+                                  array_type_payload = True
+                                  )
+
+    def get_identity_snapshot(self, snapshot_id):
+        """
+        Gets the snapshot of a miiCard member's identity specified by the supplied snapshot ID. To create a snapshot,
+        you must first call the create_identity_snapshot function. To discover existing snapshots, use the get_identity_snapshot_details
+        function.
+        """
+
+        post_params = json.dumps({"snapshotId": snapshot_id})
+
+        return self._make_request(
+                                  MiiCardServiceUrls.get_method_url('GetIdentitySnapshot'),
+                                  post_params,
+                                  IdentitySnapshot.FromDict
+                                  )                                  
+
+    def _make_request(self, url, post_data, payload_processor, wrapped_response = True, array_type_payload = False):
         # http://parand.com/say/index.php/2010/06/13/using-python-oauth2-to-access-oauth-protected-resources/
         consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
         access_token = oauth.Token(self.access_token, self.access_token_secret)
@@ -396,21 +502,11 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
         response, content = client.request(url, method="POST", body=post_data, headers=new_headers)
 
         if wrapped_response:
-            return MiiApiResponse.FromDict(json.loads(content), payload_processor)
+            return MiiApiResponse.FromDict(json.loads(content), payload_processor, array_type_payload)
         elif payload_processor:
             return payload_processor(content)
         else:
             return content
-
-class MiiCardServiceUrls(object):
-    OAUTH_ENDPOINT = "https://sts.miicard.com/auth/OAuth.ashx"
-    CLAIMS_SVC = "https://sts.miicard.com/api/v1/Claims.svc/json"
-
-    @staticmethod
-    def get_method_url(method_name):
-        """Gets the JSON API endpoint URL for a given method name"""
-
-        return MiiCardServiceUrls.CLAIMS_SVC + "/" + method_name
 
 # Fixup for simplegeo OAuth bug
 class OAuthClient(oauth.Client):
@@ -455,7 +551,9 @@ class OAuthClient(oauth.Client):
         else:
             headers.update(req.to_header(realm=realm))
 
-        return httplib2.Http.request(self, uri, method=method, body=body,
+        ctx = httplib2.Http
+
+        return ctx.request(self, uri, method=method, body=body,
             headers=headers, redirections=redirections,
             connection_type=connection_type)
 
