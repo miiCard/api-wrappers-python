@@ -2,6 +2,7 @@ import json
 import httplib2
 import oauth2 as oauth
 import urllib
+from datetime import datetime
 
 class MiiCardServiceUrls(object):
     OAUTH_ENDPOINT = "https://stsbeta.miicard.com/auth/OAuth.ashx"
@@ -254,7 +255,7 @@ class MiiUserProfile(object):
                               dict.get('PreviousFirstName', None),
                               dict.get('PreviousMiddleName', None),
                               dict.get('PreviousLastName', None),
-                              dict.get('LastVerified', None),
+                              Util.try_parse_datetime_from_json_string(dict.get('LastVerified', None)),
                               dict.get('ProfileUrl', None),
                               dict.get('ProfileShortUrl', None),
                               dict.get('CardImageUrl', None),
@@ -348,7 +349,7 @@ class IdentitySnapshotDetails(object):
         return IdentitySnapshotDetails(
                                        dict.get('SnapshotId', None),
                                        dict.get('Username', None),
-                                       dict.get('TimestampUtc', None),
+                                       Util.try_parse_datetime_from_json_string(dict.get('TimestampUtc', None)),
                                        dict.get('WasTestUser', False)
                                        )
 
@@ -594,3 +595,12 @@ class OAuthRequest(oauth.Request):
  
         return OAuthRequest(http_method, http_url, parameters, body=body,
                        is_form_encoded=is_form_encoded)
+
+class Util(object):
+    @staticmethod
+    def try_parse_datetime_from_json_string(json_string):
+        try:
+            parsed = datetime.fromtimestamp(float(json_string[6:-2])/1000)
+            return parsed
+        except ValueError:
+            return None
