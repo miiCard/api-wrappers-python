@@ -1,11 +1,12 @@
 import unittest
 import json
 import MiiCardConsumers
+from datetime import datetime
 
 class WrapperClassesTests(unittest.TestCase):
     def setUp(self):
-        self.jsonBody = '{"CardImageUrl":"https:\/\/my.miicard.com\/img\/test.png","EmailAddresses":[{"Verified":true,"Address":"test@example.com","DisplayName":"testEmail","IsPrimary":true},{"Verified":false,"Address":"test2@example.com","DisplayName":"test2Email","IsPrimary":false}],"FirstName":"Test","HasPublicProfile":true,"Identities":null,"IdentityAssured":true,"LastName":"User","LastVerified":"\/Date(1345812103)\/","MiddleName":"Middle","PhoneNumbers":[{"Verified":true,"CountryCode":"44","DisplayName":"Default","IsMobile":true,"IsPrimary":true,"NationalNumber":"7800123456"},{"Verified":false,"CountryCode":"44","DisplayName":"Default","IsMobile":false,"IsPrimary":false,"NationalNumber":"7800123457"}],"PostalAddresses":[{"House":"Addr1 House1","Line1":"Addr1 Line1","Line2":"Addr1 Line2","City":"Addr1 City","Region":"Addr1 Region","Code":"Addr1 Code","Country":"Addr1 Country","IsPrimary":true,"Verified":true},{"House":"Addr2 House1","Line1":"Addr2 Line1","Line2":"Addr2 Line2","City":"Addr2 City","Region":"Addr2 Region","Code":"Addr2 Code","Country":"Addr2 Country","IsPrimary":false,"Verified":false}],"PreviousFirstName":"PrevFirst","PreviousLastName":"PrevLast","PreviousMiddleName":"PrevMiddle","ProfileShortUrl":"http:\/\/miicard.me\/123456","ProfileUrl":"https:\/\/my.miicard.com\/card\/test","PublicProfile":{"CardImageUrl":"https:\/\/my.miicard.com\/img\/test.png","FirstName":"Test","HasPublicProfile":true,"IdentityAssured":true,"LastName":"User","LastVerified":"\/Date(1345812103)\/","MiddleName":"Middle","PreviousFirstName":"PrevFirst","PreviousLastName":"PrevLast","PreviousMiddleName":"PrevMiddle","ProfileShortUrl":"http:\/\/miicard.me\/123456","ProfileUrl":"https:\/\/my.miicard.com\/card\/test","PublicProfile":null,"Salutation":"Ms","Username":"testUser"},"Salutation":"Ms","Username":"testUser","WebProperties":[{"Verified":true,"DisplayName":"example.com","Identifier":"example.com","Type":0},{"Verified":false,"DisplayName":"2.example.com","Identifier":"http:\/\/www.2.example.com","Type":1}]}'
-        self.jsonResponseBody = '{"ErrorCode":0,"Status":0,"ErrorMessage":"A test error message","Data":true}'
+        self.jsonBody = '{"CardImageUrl":"https:\/\/my.miicard.com\/img\/test.png","EmailAddresses":[{"Verified":true,"Address":"test@example.com","DisplayName":"testEmail","IsPrimary":true},{"Verified":false,"Address":"test2@example.com","DisplayName":"test2Email","IsPrimary":false}],"FirstName":"Test","HasPublicProfile":true,"Identities":null,"IdentityAssured":true,"LastName":"User","LastVerified":"\/Date(1351594328296)\/","MiddleName":"Middle","PhoneNumbers":[{"Verified":true,"CountryCode":"44","DisplayName":"Default","IsMobile":true,"IsPrimary":true,"NationalNumber":"7800123456"},{"Verified":false,"CountryCode":"44","DisplayName":"Default","IsMobile":false,"IsPrimary":false,"NationalNumber":"7800123457"}],"PostalAddresses":[{"House":"Addr1 House1","Line1":"Addr1 Line1","Line2":"Addr1 Line2","City":"Addr1 City","Region":"Addr1 Region","Code":"Addr1 Code","Country":"Addr1 Country","IsPrimary":true,"Verified":true},{"House":"Addr2 House1","Line1":"Addr2 Line1","Line2":"Addr2 Line2","City":"Addr2 City","Region":"Addr2 Region","Code":"Addr2 Code","Country":"Addr2 Country","IsPrimary":false,"Verified":false}],"PreviousFirstName":"PrevFirst","PreviousLastName":"PrevLast","PreviousMiddleName":"PrevMiddle","ProfileShortUrl":"http:\/\/miicard.me\/123456","ProfileUrl":"https:\/\/my.miicard.com\/card\/test","PublicProfile":{"CardImageUrl":"https:\/\/my.miicard.com\/img\/test.png","FirstName":"Test","HasPublicProfile":true,"IdentityAssured":true,"LastName":"User","LastVerified":"\/Date(1351594328296)\/","MiddleName":"Middle","PreviousFirstName":"PrevFirst","PreviousLastName":"PrevLast","PreviousMiddleName":"PrevMiddle","ProfileShortUrl":"http:\/\/miicard.me\/123456","ProfileUrl":"https:\/\/my.miicard.com\/card\/test","PublicProfile":null,"Salutation":"Ms","Username":"testUser"},"Salutation":"Ms","Username":"testUser","WebProperties":[{"Verified":true,"DisplayName":"example.com","Identifier":"example.com","Type":0},{"Verified":false,"DisplayName":"2.example.com","Identifier":"http:\/\/www.2.example.com","Type":1}]}'
+        self.jsonResponseBody = '{"ErrorCode":0,"Status":0,"ErrorMessage":"A test error message","Data":true,"IsTestUser":true}'
 
     def test_can_deserialise_user_profile(self):
         o = MiiCardConsumers.MiiUserProfile.FromDict(json.loads(self.jsonBody))
@@ -97,7 +98,7 @@ class WrapperClassesTests(unittest.TestCase):
         self.assertEqual("PrevLast", obj.previous_last_name)
 
         self.assertTrue(obj.identity_assured)
-        self.assertEqual("/Date(1345812103)/", obj.last_verified)
+        self.assertEqual(datetime.fromtimestamp(1351594328.296), obj.last_verified)
 
         self.assertTrue(obj.has_public_profile)
         self.assertEqual("http://miicard.me/123456", obj.profile_short_url)
@@ -111,6 +112,7 @@ class WrapperClassesTests(unittest.TestCase):
         self.assertEqual(MiiCardConsumers.MiiApiCallStatus.SUCCESS, o.status)
         self.assertEqual(MiiCardConsumers.MiiApiErrorCode.SUCCESS, o.error_code)
         self.assertEqual("A test error message", o.error_message)
+        self.assertTrue(o.is_test_user)
         self.assertTrue(o.data)
 
         pass
@@ -120,6 +122,16 @@ class WrapperClassesTests(unittest.TestCase):
         self.failUnlessRaises(ValueError, MiiCardConsumers.MiiCardOAuthClaimsService, "ConsumerKey", None, "AccessToken", "AccessTokenSecret")
         self.failUnlessRaises(ValueError, MiiCardConsumers.MiiCardOAuthClaimsService, "ConsumerKey", "ConsumerSecret", None, "AccessTokenSecret")
         self.failUnlessRaises(ValueError, MiiCardConsumers.MiiCardOAuthClaimsService, "ConsumerKey", "ConsumerSecret", "AccessToken", None)
+
+    def test_can_deserialise_snapshot(self):
+        json_text = '{"SnapshotId":"0fc60a0e-a058-4cae-bae1-460db73f2947","TimestampUtc":"\/Date(1351594328296)\/","Username":"testuser","WasTestUser":true}'
+
+        o = MiiCardConsumers.IdentitySnapshotDetails.FromDict(json.loads(json_text))
+
+        self.assertEqual("0fc60a0e-a058-4cae-bae1-460db73f2947", o.snapshot_id)
+        self.assertEqual(datetime.fromtimestamp(1351594328.296), o.timestamp_utc)
+        self.assertEqual("testuser", o.username)
+        self.assertTrue(o.was_test_user)
 
 # Run if command-line
 if __name__ == '__main__':
