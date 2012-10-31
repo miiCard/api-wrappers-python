@@ -443,18 +443,6 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   wrapped_response = False
                                   )
 
-    def create_identity_snapshot(self):
-        """
-        Creates a point-in-time snapshot of the miiCard member's identity information, returning metadata about that
-        snapshot for subsequent retrieval
-        """
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('CreateIdentitySnapshot'),
-                                  None,
-                                  IdentitySnapshotDetails.FromDict
-                                  )
-
     def get_identity_snapshot_details(self, snapshot_id = None):
         """
         Gets details of a snapshot identified by its ID, or of all snapshots for the miiCard member if
@@ -472,9 +460,8 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
 
     def get_identity_snapshot(self, snapshot_id):
         """
-        Gets the snapshot of a miiCard member's identity specified by the supplied snapshot ID. To create a snapshot,
-        you must first call the create_identity_snapshot function. To discover existing snapshots, use the get_identity_snapshot_details
-        function.
+        Gets the snapshot of a miiCard member's identity specified by the supplied snapshot ID. To discover existing snapshots, 
+	use the get_identity_snapshot_details function supplying no parameters.
         """
 
         post_params = json.dumps({"snapshotId": snapshot_id})
