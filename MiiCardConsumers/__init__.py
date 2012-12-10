@@ -5,8 +5,8 @@ import urllib
 from datetime import datetime
 
 class MiiCardServiceUrls(object):
-    OAUTH_ENDPOINT = "https://stsbeta.miicard.com/auth/OAuth.ashx"
-    CLAIMS_SVC = "https://stsbeta.miicard.com/api/v1/Claims.svc/json"
+    OAUTH_ENDPOINT = "https://sts.miicard.com/auth/OAuth.ashx"
+    CLAIMS_SVC = "https://sts.miicard.com/api/v1/Claims.svc/json"
 
     @staticmethod
     def get_method_url(method_name):
