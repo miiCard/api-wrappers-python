@@ -171,7 +171,8 @@ class MiiUserProfile(object):
                  web_properties,
                  identity_assured,
                  has_public_profile,
-                 public_profile
+                 public_profile,
+                 date_of_birth
                  ):
 
         self.username = username
@@ -194,6 +195,7 @@ class MiiUserProfile(object):
         self.identity_assured = identity_assured
         self.has_public_profile = has_public_profile
         self.public_profile = public_profile
+        self.date_of_birth = date_of_birth
 
     @staticmethod
     def FromDict(dict):
@@ -266,7 +268,8 @@ class MiiUserProfile(object):
                               web_properties_parsed,
                               dict.get('IdentityAssured', None),
                               dict.get('HasPublicProfile', None),
-                              public_profile_parsed
+                              public_profile_parsed,
+                              Util.try_parse_datetime_from_json_string(dict.get('DateOfBirth', None))
                               )
 
 class MiiApiCallStatus(object):
