@@ -595,5 +595,5 @@ class Util(object):
         try:
             parsed = datetime.fromtimestamp(float(json_string[6:-2])/1000)
             return parsed
-        except ValueError:
+        except (ValueError, TypeError):
             return None
