@@ -467,7 +467,7 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
     def get_identity_snapshot(self, snapshot_id):
         """
         Gets the snapshot of a miiCard member's identity specified by the supplied snapshot ID. To discover existing snapshots, 
-	use the get_identity_snapshot_details function supplying no parameters.
+	    use the get_identity_snapshot_details function supplying no parameters.
         """
 
         post_params = json.dumps({"snapshotId": snapshot_id})
@@ -476,7 +476,21 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   MiiCardServiceUrls.get_method_url('GetIdentitySnapshot'),
                                   post_params,
                                   IdentitySnapshot.FromDict
-                                  )                                  
+                                  )
+                              
+    def get_identity_snapshot_pdf(self, snapshot_id):
+        """
+        Returns a PDF representation of an identity snapshot specified by its snapshot ID, as a byte stream.
+        """
+
+        post_params = json.dumps({"snapshotId": snapshot_id})
+
+        return self._make_request(
+                                  MiiCardServiceUrls.get_method_url('GetIdentitySnapshotPdf'),
+                                  post_params,
+                                  None,
+                                  wrapped_response = False
+                                  )
 
     def _make_request(self, url, post_data, payload_processor, wrapped_response = True, array_type_payload = False):
         # http://parand.com/say/index.php/2010/06/13/using-python-oauth2-to-access-oauth-protected-resources/
