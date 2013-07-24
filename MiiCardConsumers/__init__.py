@@ -461,7 +461,7 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   MiiCardServiceUrls.get_method_url('GetCardImage'),
                                   post_params,
                                   None,
-                                  wrapper_response = False
+                                  wrapped_response = False
                                   )
 
     def get_identity_snapshot_details(self, snapshot_id = None):
