@@ -449,6 +449,21 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   wrapped_response = False
                                   )
 
+    def get_card_image(self, snapshot_id = None, show_email_address = False, show_phone_number = False, format = None):
+        """
+        Returns a card-image representation of the miiCard member's identity assurance status, pulling that data from
+        a snapshot specified by its ID (if supplied) or live data otherwise.
+        """
+
+        post_params = json.dumps({"SnapshotId": snapshot_id, "ShowEmailAddress": show_email_address, "ShowPhoneNumber": show_phone_number, "Format": format})
+
+        return self._make_request(
+                                  MiiCardServiceUrls.get_method_url('GetCardImage'),
+                                  post_params,
+                                  None,
+                                  wrapper_response = False
+                                  )
+
     def get_identity_snapshot_details(self, snapshot_id = None):
         """
         Gets details of a snapshot identified by its ID, or of all snapshots for the miiCard member if
