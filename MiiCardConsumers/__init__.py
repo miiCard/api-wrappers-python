@@ -2,17 +2,41 @@ import json
 import httplib2
 import oauth2 as oauth
 import urllib
+import hashlib
 from datetime import datetime
 
 class MiiCardServiceUrls(object):
     OAUTH_ENDPOINT = "https://sts.miicard.com/auth/OAuth.ashx"
     CLAIMS_SVC = "https://sts.miicard.com/api/v1/Claims.svc/json"
+    FINANCIAL_SVC = "https://sts.miicard.com/api/v1/Financial.svc/json"
+    DIRECTORY_SVC = "https://sts.miicard.com/api/v1/Members"
 
     @staticmethod
     def get_method_url(method_name):
-        """Gets the JSON API endpoint URL for a given method name"""
+        """[Deprecated] Gets the JSON API endpoint URL for a given method name"""
 
         return MiiCardServiceUrls.CLAIMS_SVC + "/" + method_name
+
+    @staticmethod
+    def get_claims_method_url(method_name):
+        """Gets the Claims service JSON API endpoint URL for a given method name"""
+
+        return MiiCardServiceUrls.CLAIMS_SVC + "/" + method_name
+
+    @staticmethod
+    def get_financial_method_url(method_name):
+        """Gets the Financial service JSON API endpoint URL for a given method name"""
+
+        return MiiCardServiceUrls.FINANCIAL_SVC + "/" + method_name
+
+    @staticmethod
+    def get_directory_service_query_url(criterion, value, hashed = False):
+        toReturn = MiiCardServiceUrls.DIRECTORY_SVC + "?" + criterion + "=" + value
+
+        if hashed:
+            toReturn += "&hashed=true"
+
+        return toReturn
 
 class Claim(object):
     """Base class for verifiable information returned by the miiCard Claims API."""
@@ -172,7 +196,8 @@ class MiiUserProfile(object):
                  identity_assured,
                  has_public_profile,
                  public_profile,
-                 date_of_birth
+                 date_of_birth,
+                 age
                  ):
 
         self.username = username
@@ -196,6 +221,7 @@ class MiiUserProfile(object):
         self.has_public_profile = has_public_profile
         self.public_profile = public_profile
         self.date_of_birth = date_of_birth
+        self.age = age
 
     @staticmethod
     def FromDict(dict):
@@ -269,8 +295,266 @@ class MiiUserProfile(object):
                               dict.get('IdentityAssured', None),
                               dict.get('HasPublicProfile', None),
                               public_profile_parsed,
-                              Util.try_parse_datetime_from_json_string(dict.get('DateOfBirth', None))
+                              Util.try_parse_datetime_from_json_string(dict.get('DateOfBirth', None)),
+                              dict.get('Age', None)
                               )
+
+class FinancialRefreshStatus(object):
+    """Wraps the state of a financial refresh request"""
+
+    def __init__(
+                 self,
+                 state
+                 ):
+
+        self.state = state
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a FinancialRefreshStatus object from a dictionary of parameters"""
+
+        return FinancialRefreshStatus(
+                                      dict.get('State', RefreshState.UNKNOWN)
+                                      )
+
+class AuthenticationDetails(object):
+    """Records the manner of authentication that took place for a given sharing of a miiCard member's identity data"""
+    
+    def __init__(
+                 self,
+                 authentication_time_utc,
+                 second_factor_token_type,
+                 second_factor_provider,
+                 locations
+                 ):
+        
+        self.authentication_time_utc = authentication_time_utc
+        self.second_factor_token_type = second_factor_token_type
+        self.second_factor_provider = second_factor_provider
+        self.locations = locations
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns an AuthenticationDetails object from a dictionary of parameters"""
+
+        locations = dict.get('Locations', None)
+
+        if locations:
+            locations_parsed = []
+            for location in locations:
+                locations_parsed.append(GeographicLocation.FromDict(location))
+        else:
+            locations_parsed = None
+
+        return AuthenticationDetails(
+                                     Util.try_parse_datetime_from_json_string(dict.get('AuthenticationTimeUtc', None)),
+                                     dict.get('SecondFactorTokenType', AuthenticationTokenType.NONE),
+                                     dict.get('SecondFactorProvider', None),
+                                     locations_parsed
+                                     )
+
+class AuthenticationTokenType(object):
+    """Enumeration describing the kind of second factor that was used during a 2-step verification process during authentication"""
+
+    NONE = 0
+    SOFT = 1
+    HARD = 2
+
+class RefreshState(object):
+    """Enumeration describing the current state of a financial refresh request for a miiCard user"""
+
+    UNKNOWN = 0
+    DATA_AVAILABLE = 1
+    IN_PROGRESS = 2
+
+class MiiFinancialData(object):
+    """
+    Represents a collection of financial data that a miiCard member has elected to share with a
+    relying party.
+    """
+
+    def __init__(
+                 self,
+                 financial_providers
+                 ):
+
+        self.financial_providers = financial_providers
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a MiiFinancialData object from a dictionary of parameters"""
+
+        financial_providers = dict.get('FinancialProviders', None)
+
+        if financial_providers:
+            financial_providers_parsed = []
+            for financial_provider in financial_providers:
+                financial_providers_parsed.append(FinancialProvider.FromDict(financial_provider))
+        else:
+            financial_providers_parsed = None
+
+        return MiiFinancialData(
+                                financial_providers_parsed
+                                )
+
+class FinancialProvider(object):
+    """A single financial provider containing summary or transaction-level data."""
+
+    def __init__(
+                 self,
+                 provider_name,
+                 financial_accounts
+                 ):
+
+        self.provider_name = provider_name
+        self.financial_accounts = financial_accounts
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a FinancialProvider object from a dictionary of parameters"""
+
+        financial_accounts = dict.get('FinancialAccounts', None)
+
+        if financial_accounts:
+            financial_accounts_parsed = []
+            for financial_account in financial_accounts:
+                financial_accounts_parsed.append(FinancialAccount.FromDict(financial_account))
+        else:
+            financial_accounts_parsed = None
+
+        return FinancialProvider(
+                                 dict.get('ProviderName'),
+                                 financial_accounts_parsed
+                                 )
+
+class FinancialAccount(object):
+    """
+    Details of a single financial account that a miiCard member has elected to share with a
+    relying party application.
+    """
+
+    def __init__(
+                 self,
+                 account_name,
+                 holder,
+                 sort_code,
+                 account_number,
+                 type,
+                 from_date,
+                 last_updated_utc,
+                 closing_balance,
+                 debits_sum,
+                 debits_count,
+                 credits_sum,
+                 credits_count,
+                 currency_iso,
+                 transactions
+                 ):
+
+        self.account_name = account_name
+        self.holder = holder
+        self.sort_code = sort_code
+        self.account_number = account_number
+        self.type = type
+        self.from_date = from_date
+        self.last_updated_utc = last_updated_utc
+        self.closing_balance = closing_balance
+        self.debits_sum = debits_sum
+        self.debits_count = debits_count
+        self.credits_sum = credits_sum
+        self.credits_count = credits_count
+        self.currency_iso = currency_iso
+        self.transactions = transactions
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a FinancialAccount object from a dictionary of parameters"""
+
+        transactions = dict.get('Transactions', None)
+
+        if transactions:
+            transactions_parsed = []
+            for transaction in transactions:
+                transactions_parsed.append(FinancialTransaction.FromDict(transaction))
+        else:
+            transactions_parsed = None
+
+        return FinancialAccount(
+                                dict.get('AccountName'),
+                                dict.get('Holder'),
+                                dict.get('SortCode'),
+                                dict.get('AccountNumber'),
+                                dict.get('Type'),
+                                Util.try_parse_datetime_from_json_string(dict.get('FromDate', None)),
+                                Util.try_parse_datetime_from_json_string(dict.get('LastUpdatedUtc', None)),
+                                dict.get('ClosingBalance'),
+                                dict.get('DebitsSum'),
+                                dict.get('DebitsCount'),
+                                dict.get('CreditsSum'),
+                                dict.get('CreditsCount'),
+                                dict.get('CurrencyIso'),
+                                transactions_parsed
+                                )
+
+class FinancialTransaction(object):
+    """A single transaction reported against a financial account whose details have been shared by a miiCard member."""
+
+    def __init__(
+                 self,
+                 date,
+                 amount_credited,
+                 amount_debited,
+                 description,
+                 id
+                 ):
+
+        self.date = date
+        self.amount_credited = amount_credited
+        self.amount_debited = amount_debited
+        self.description = description
+        self.id = id
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a FinancialTransaction object from a dictionary of parameters"""
+
+        return FinancialTransaction(
+                                    Util.try_parse_datetime_from_json_string(dict.get('Date')),
+                                    dict.get('AmountCredited', None),
+                                    dict.get('AmountDebited', None),
+                                    dict.get('Description'),
+                                    dict.get('ID')
+                                    )
+
+class GeographicLocation(object):
+    """Represents a miiCard member's geographic location as reported by a single data provider"""
+
+    def __init__(
+                 self,
+                 location_provider,
+                 latitude,
+                 longitude,
+                 lat_long_accuracy_metres,
+                 approximate_address
+                 ):
+
+        self.location_provider = location_provider
+        self.latitude = latitude
+        self.longitude = longitude
+        self.lat_long_accuracy_metres = lat_long_accuracy_metres
+        self.approximate_address = approximate_address
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a GeographicLocation object from a dictionary of parameters"""
+
+        return GeographicLocation(
+                                  dict.get('LocationProvider', None),
+                                  dict.get('Latitude', None),
+                                  dict.get('Longitude', None),
+                                  dict.get('LatLongAccuracyMetres', None),
+                                  PostalAddress.FromDict(dict.get('ApproximateAddress', None))
+                                  )
 
 class MiiApiCallStatus(object):
     """Enumeration describing the overall status of an API call"""
@@ -390,128 +674,11 @@ class MiiCardOAuthServiceBase(object):
         self.access_token = access_token;
         self.access_token_secret = access_token_secret;
 
-class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
-    """Wrapper around the miiCard Claims API v1"""    
-
-    def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret):
-        super(MiiCardOAuthClaimsService, self).__init__(consumer_key, consumer_secret, access_token, access_token_secret)
-
-    def get_claims(self):
-        """
-        Returns a subset of the miiCard user's identity as agreed by the user, as a MiiApiResponse object whose data field
-        is populated with a MiiUserProfile object
-        """
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('GetClaims'),
-                                  None,
-                                  MiiUserProfile.FromDict
-                                  )
-
-    def is_social_account_assured(self, social_account_id, social_account_type):
-        """
-        Returns whether the miiCard user has verified ownership of a particular social network account as a MiiApiResponse
-        object whose data field is populated with a boolean
-        """
-
-        post_params = json.dumps({"socialAccountId": social_account_id, "socialAccountType": social_account_type})
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('IsSocialAccountAssured'),
-                                  post_params,
-                                  None
-                                  )
-
-    def is_user_assured(self):
-        """
-        Returns whether the miiCard user's identity has been assured to the level of assurance required by your developer profile 
-        as a MiiApiResponse object whose data field is populated with a boolean
-        """
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('IsUserAssured'),
-                                  None,
-                                  None
-                                  )
-    
-    def assurance_image(self, type):
-        """
-        Returns an image representation of the identity assurance level of a user in a specified format, returning the
-        PNG content of the image
-        """
-
-        post_params = json.dumps({"type": type})
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('AssuranceImage'),
-                                  post_params,
-                                  None,
-                                  wrapped_response = False
-                                  )
-
-    def get_card_image(self, snapshot_id = None, show_email_address = False, show_phone_number = False, format = None):
-        """
-        Returns a card-image representation of the miiCard member's identity assurance status, pulling that data from
-        a snapshot specified by its ID (if supplied) or live data otherwise.
-        """
-
-        post_params = json.dumps({"SnapshotId": snapshot_id, "ShowEmailAddress": show_email_address, "ShowPhoneNumber": show_phone_number, "Format": format})
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('GetCardImage'),
-                                  post_params,
-                                  None,
-                                  wrapped_response = False
-                                  )
-
-    def get_identity_snapshot_details(self, snapshot_id = None):
-        """
-        Gets details of a snapshot identified by its ID, or of all snapshots for the miiCard member if
-        not supplied.
-        """
-
-        post_params = json.dumps({"snapshotId": snapshot_id})
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('GetIdentitySnapshotDetails'),
-                                  post_params,
-                                  IdentitySnapshotDetails.FromDict,
-                                  array_type_payload = True
-                                  )
-
-    def get_identity_snapshot(self, snapshot_id):
-        """
-        Gets the snapshot of a miiCard member's identity specified by the supplied snapshot ID. To discover existing snapshots, 
-	    use the get_identity_snapshot_details function supplying no parameters.
-        """
-
-        post_params = json.dumps({"snapshotId": snapshot_id})
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('GetIdentitySnapshot'),
-                                  post_params,
-                                  IdentitySnapshot.FromDict
-                                  )
-                              
-    def get_identity_snapshot_pdf(self, snapshot_id):
-        """
-        Returns a PDF representation of an identity snapshot specified by its snapshot ID, as a byte stream.
-        """
-
-        post_params = json.dumps({"snapshotId": snapshot_id})
-
-        return self._make_request(
-                                  MiiCardServiceUrls.get_method_url('GetIdentitySnapshotPdf'),
-                                  post_params,
-                                  None,
-                                  wrapped_response = False
-                                  )
-
     def _make_request(self, url, post_data, payload_processor, wrapped_response = True, array_type_payload = False):
         # http://parand.com/say/index.php/2010/06/13/using-python-oauth2-to-access-oauth-protected-resources/
         consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
         access_token = oauth.Token(self.access_token, self.access_token_secret)
-        
+
         import httplib2
         httplib2.debuglevel = 1000
 
@@ -530,6 +697,237 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
             return payload_processor(content)
         else:
             return content
+
+class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
+    """Wrapper around the miiCard Claims API v1"""    
+
+    def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret):
+        super(MiiCardOAuthClaimsService, self).__init__(consumer_key, consumer_secret, access_token, access_token_secret)
+
+    def get_claims(self):
+        """
+        Returns a subset of the miiCard user's identity as agreed by the user, as a MiiApiResponse object whose data field
+        is populated with a MiiUserProfile object
+        """
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('GetClaims'),
+                                  None,
+                                  MiiUserProfile.FromDict
+                                  )
+
+    def is_social_account_assured(self, social_account_id, social_account_type):
+        """
+        Returns whether the miiCard user has verified ownership of a particular social network account as a MiiApiResponse
+        object whose data field is populated with a boolean
+        """
+
+        post_params = json.dumps({"socialAccountId": social_account_id, "socialAccountType": social_account_type})
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('IsSocialAccountAssured'),
+                                  post_params,
+                                  None
+                                  )
+
+    def is_user_assured(self):
+        """
+        Returns whether the miiCard user's identity has been assured to the level of assurance required by your developer profile 
+        as a MiiApiResponse object whose data field is populated with a boolean
+        """
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('IsUserAssured'),
+                                  None,
+                                  None
+                                  )
+    
+    def assurance_image(self, type):
+        """
+        Returns an image representation of the identity assurance level of a user in a specified format, returning the
+        PNG content of the image
+        """
+
+        post_params = json.dumps({"type": type})
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('AssuranceImage'),
+                                  post_params,
+                                  None,
+                                  wrapped_response = False
+                                  )
+
+    def get_card_image(self, snapshot_id = None, show_email_address = False, show_phone_number = False, format = None):
+        """
+        Returns a card-image representation of the miiCard member's identity assurance status, pulling that data from
+        a snapshot specified by its ID (if supplied) or live data otherwise.
+        """
+
+        post_params = json.dumps({"SnapshotId": snapshot_id, "ShowEmailAddress": show_email_address, "ShowPhoneNumber": show_phone_number, "Format": format})
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('GetCardImage'),
+                                  post_params,
+                                  None,
+                                  wrapped_response = False
+                                  )
+
+    def get_identity_snapshot_details(self, snapshot_id = None):
+        """
+        Gets details of a snapshot identified by its ID, or of all snapshots for the miiCard member if
+        not supplied.
+        """
+
+        post_params = json.dumps({"snapshotId": snapshot_id})
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('GetIdentitySnapshotDetails'),
+                                  post_params,
+                                  IdentitySnapshotDetails.FromDict,
+                                  array_type_payload = True
+                                  )
+
+    def get_identity_snapshot(self, snapshot_id):
+        """
+        Gets the snapshot of a miiCard member's identity specified by the supplied snapshot ID. To discover existing snapshots, 
+        use the get_identity_snapshot_details function supplying no parameters.
+        """
+
+        post_params = json.dumps({"snapshotId": snapshot_id})
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('GetIdentitySnapshot'),
+                                  post_params,
+                                  IdentitySnapshot.FromDict
+                                  )
+                              
+    def get_identity_snapshot_pdf(self, snapshot_id):
+        """
+        Returns a PDF representation of an identity snapshot specified by its snapshot ID, as a byte stream.
+        """
+
+        post_params = json.dumps({"snapshotId": snapshot_id})
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('GetIdentitySnapshotPdf'),
+                                  post_params,
+                                  None,
+                                  wrapped_response = False
+                                  )
+
+    def get_authentication_details(self, snapshot_id):
+        """
+        Returns the authentication details of an identity snapshot by its snapshot ID, as an AuthenticationDetails object
+        """
+
+        post_params = json.dumps({"snapshotId": snapshot_id})
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('GetAuthenticationDetails'),
+                                  post_params,
+                                  AuthenticationDetails.FromDict
+                                  )
+
+class MiiCardOAuthFinancialService(MiiCardOAuthServiceBase):
+    """Wrapper around the miiCard Financial API v1"""
+
+    def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret):
+        super(MiiCardOAuthFinancialService, self).__init__(consumer_key, consumer_secret, access_token, access_token_secret)
+
+    def is_refresh_in_progress(self):
+        """
+        Returns whether the miiCard user's financial links are currently being refreshed by miiCard's data provider
+        """
+
+        return super(MiiCardOAuthFinancialService, self)._make_request(
+                                  MiiCardServiceUrls.get_financial_method_url('IsRefreshInProgress'),
+                                  None,
+                                  None
+                                  )
+
+    def refresh_financial_data(self):
+        """
+        Makes a request to miiCard's data provider to refresh the financial links of a miiCard user, and returns the result
+        """
+
+        return super(MiiCardOAuthFinancialService, self)._make_request(
+                                  MiiCardServiceUrls.get_financial_method_url('RefreshFinancialData'),
+                                  None,
+                                  FinancialRefreshStatus.FromDict
+                                  )
+
+    def get_financial_transactions(self):
+        """
+        Gets the transactions of a miiCard user's financial account(s)
+        """
+
+        return super(MiiCardOAuthFinancialService, self)._make_request(
+                                  MiiCardServiceUrls.get_financial_method_url('GetFinancialTransactions'),
+                                  None,
+                                  MiiFinancialData.FromDict
+                                  )
+
+class MiiCardDirectoryService:
+    CRITERION_USERNAME = "username"
+    CRITERION_EMAIL = "email"
+    CRITERION_PHONE = "phone"
+    CRITERION_TWITTER = "twitter"
+    CRITERION_FACEBOOK = "facebook"
+    CRITERION_LINKEDIN = "linkedin"
+    CRITERION_GOOGLE = "google"
+    CRITERION_MICROSOFT_ID = "liveid"
+    CRITERION_EBAY = "ebay"
+    CRITERION_VERITAS_VITAE = "veritasvitae"
+
+    def find_by_username(self, username, hashed = False):
+        return find_by(CRITERION_USERNAME, username, hashed)
+
+    def find_by_email(self, email, hashed = False):
+        return find_by(CRITERION_EMAIL, email, hashed)
+
+    def find_by_phone(phone, hashed = False):
+        return find_by(CRITERION_PHONE, phone, hashed)
+
+    def find_by_twitter(self, twitter_handle_or_profile_url, hashed = False):
+        return find_by(CRITERION_TWITTER, twitter_handle_or_profile_url, hashed)
+
+    def find_by_facebook(self, facebook_url, hashed = False):
+        return find_by(CRITERION_FACEBOOK, facebook_url, hashed)
+
+    def find_by_linkedin(self, linkedin_www_url, hashed = False):
+        return find_by(CRITERION_LINKEDIN, linkedin_www_url, hashed)
+
+    def find_by_google(self, google_handle_or_profile_url, hashed = False):
+        return find_by(CRITERION_GOOGLE, google_handle_or_profile_url, hashed)
+
+    def find_by_microsoft_id(self, microsoft_id_url, hashed = False):
+        return find_by(CRITERION_MICROSOFT_ID, microsoft_id_url, hashed)
+
+    def find_by_ebay(self, ebay_handle_or_profile_url, hashed = False):
+        return find_by(CRITERION_EBAY, ebay_handle_or_profile_url, hashed)
+
+    def find_by_veritas_vitae(self, veritas_vitae_vv_number_or_profile_url, hashed = False):
+        return find_by(CRITERION_VERITAS_VITAE, veritas_vitae_vv_number_or_profile_url, hashed)
+
+    def find_by(self, criterion, value, hashed = False):
+        import httplib2
+        http = httplib2.Http()
+
+        url = MiiCardServiceUrls.get_directory_service_query_url(criterion, value, hashed)
+        headers = {'Content-type': 'application/json'}
+
+        response, content = http.request(url, 'GET', None, headers)
+
+        toReturn = None
+        if content is not None:
+            parsed_content = MiiApiResponse.FromDict(json.loads(content), MiiUserProfile.FromDict)
+            if parsed_content is not None:
+                toReturn = parsed_content.data
+
+        return toReturn
+
+    def hash_identifier(self, identifier):
+        return hashlib.sha1(identifier).hexdigest()
 
 # Fixup for simplegeo OAuth bug
 class OAuthClient(oauth.Client):
