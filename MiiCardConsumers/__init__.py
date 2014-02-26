@@ -403,11 +403,13 @@ class FinancialProvider(object):
     def __init__(
                  self,
                  provider_name,
-                 financial_accounts
+                 financial_accounts,
+                 financial_credit_cards
                  ):
 
         self.provider_name = provider_name
         self.financial_accounts = financial_accounts
+        self.financial_credit_cards = financial_credit_cards
 
     @staticmethod
     def FromDict(dict):
@@ -422,9 +424,19 @@ class FinancialProvider(object):
         else:
             financial_accounts_parsed = None
 
+        financial_credit_cards = dict.get('FinancialCreditCards', None)
+
+        if financial_credit_cards:
+            financial_credit_cards_parsed = []
+            for financial_credit_card in financial_credit_cards:
+                financial_credit_cards_parsed.append(FinancialCreditCard.FromDict(financial_credit_card))
+        else:
+            financial_credit_cards_parsed = None
+
         return FinancialProvider(
                                  dict.get('ProviderName'),
-                                 financial_accounts_parsed
+                                 financial_accounts_parsed,
+                                 financial_credit_cards_parsed
                                  )
 
 class FinancialAccount(object):
@@ -488,6 +500,75 @@ class FinancialAccount(object):
                                 Util.try_parse_datetime_from_json_string(dict.get('FromDate', None)),
                                 Util.try_parse_datetime_from_json_string(dict.get('LastUpdatedUtc', None)),
                                 dict.get('ClosingBalance'),
+                                dict.get('DebitsSum'),
+                                dict.get('DebitsCount'),
+                                dict.get('CreditsSum'),
+                                dict.get('CreditsCount'),
+                                dict.get('CurrencyIso'),
+                                transactions_parsed
+                                )
+
+class FinancialCreditCard(object):
+    """
+    Details of a single financial credit card account that a miiCard member has elected to share with a
+    relying party application.
+    """
+
+    def __init__(
+                 self,
+                 account_name,
+                 holder,
+                 account_number,
+                 type,
+                 from_date,
+                 last_updated_utc,
+                 credit_limit,
+                 running_balance,
+                 debits_sum,
+                 debits_count,
+                 credits_sum,
+                 credits_count,
+                 currency_iso,
+                 transactions
+                 ):
+
+        self.account_name = account_name
+        self.holder = holder
+        self.account_number = account_number
+        self.type = type
+        self.from_date = from_date
+        self.last_updated_utc = last_updated_utc
+        self.credit_limit = credit_limit
+        self.running_balance = running_balance
+        self.debits_sum = debits_sum
+        self.debits_count = debits_count
+        self.credits_sum = credits_sum
+        self.credits_count = credits_count
+        self.currency_iso = currency_iso
+        self.transactions = transactions
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a FinancialCreditCard object from a dictionary of parameters"""
+
+        transactions = dict.get('Transactions', None)
+
+        if transactions:
+            transactions_parsed = []
+            for transaction in transactions:
+                transactions_parsed.append(FinancialTransaction.FromDict(transaction))
+        else:
+            transactions_parsed = None
+
+        return FinancialCreditCard(
+                                dict.get('AccountName'),
+                                dict.get('Holder'),
+                                dict.get('AccountNumber'),
+                                dict.get('Type'),
+                                Util.try_parse_datetime_from_json_string(dict.get('FromDate', None)),
+                                Util.try_parse_datetime_from_json_string(dict.get('LastUpdatedUtc', None)),
+                                dict.get('CreditLimit'),
+                                dict.get('RunningBalance'),
                                 dict.get('DebitsSum'),
                                 dict.get('DebitsCount'),
                                 dict.get('CreditsSum'),
@@ -845,6 +926,17 @@ class MiiCardOAuthFinancialService(MiiCardOAuthServiceBase):
                                   None
                                   )
 
+    def is_refresh_in_progress_credit_cards(self):
+        """
+        Returns whether the miiCard user's financial credit card links are currently being refreshed by miiCard's data provider
+        """
+
+        return super(MiiCardOAuthFinancialService, self)._make_request(
+                                  MiiCardServiceUrls.get_financial_method_url('IsRefreshInProgressCreditCards'),
+                                  None,
+                                  None
+                                  )
+
     def refresh_financial_data(self):
         """
         Makes a request to miiCard's data provider to refresh the financial links of a miiCard user, and returns the result
@@ -856,6 +948,17 @@ class MiiCardOAuthFinancialService(MiiCardOAuthServiceBase):
                                   FinancialRefreshStatus.FromDict
                                   )
 
+    def refresh_financial_data_credit_cards(self):
+        """
+        Makes a request to miiCard's data provider to refresh the financial credit card links of a miiCard user, and returns the result
+        """
+
+        return super(MiiCardOAuthFinancialService, self)._make_request(
+                                  MiiCardServiceUrls.get_financial_method_url('RefreshFinancialDataCreditCards'),
+                                  None,
+                                  FinancialRefreshStatus.FromDict
+                                  )
+
     def get_financial_transactions(self):
         """
         Gets the transactions of a miiCard user's financial account(s)
@@ -863,6 +966,17 @@ class MiiCardOAuthFinancialService(MiiCardOAuthServiceBase):
 
         return super(MiiCardOAuthFinancialService, self)._make_request(
                                   MiiCardServiceUrls.get_financial_method_url('GetFinancialTransactions'),
+                                  None,
+                                  MiiFinancialData.FromDict
+                                  )
+
+    def get_financial_transactions_credit_cards(self):
+        """
+        Gets the transactions of a miiCard user's financial credit card account(s)
+        """
+
+        return super(MiiCardOAuthFinancialService, self)._make_request(
+                                  MiiCardServiceUrls.get_financial_method_url('GetFinancialTransactionsCreditCards'),
                                   None,
                                   MiiFinancialData.FromDict
                                   )

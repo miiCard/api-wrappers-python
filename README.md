@@ -73,8 +73,11 @@ The following list is provided as a convenient cheat-sheet, and maps the API's m
 <table>
 <tr><th>API method</th><th>Python equivalent (given `api` instance of `MiiCardOAuthFinancialService`)</th></tr>
 <tr><td>IsRefreshInProgress</td><td>api.is_refresh_in_progress()</td></tr>
+<tr><td>IsRefreshInProgressCreditCards</td><td>api.is_refresh_in_progress_credit_cards()</td></tr>
 <tr><td>RefreshFinancialData</td><td>api.refresh_financial_data()</td></tr>
+<tr><td>RefreshFinancialDataCreditCards</td><td>api.refresh_financial_data_credit_cards()</td></tr>
 <tr><td>GetFinancialTransactions</td><td>api.get_financial_transactions()</td></tr>
+<tr><td>GetFinancialTransactionsCreditCards</td><td>api.get_financial_transactions_credit_cards()</td></tr>
 </table>
 
 ####Directory API ([documentation link](http://www.miicard.com/developers/directory-api))
@@ -303,12 +306,33 @@ If you need to hash an identifier you can use the `MiiCardDirectoryService.hash_
 <tr><td>Transactions</td><td>account.transactions</td></tr>
 </table>
 
+####FinancialCreditCard ([documentation link](http://www.miicard.com/developers/financial-api#FinancialCreditCard))
+
+<table>
+<tr><th>API data-type property</td><th>Python equivalent (given `creditCard` instance of `FinancialCreditCard`)</th></tr>
+<tr><td>AccountName</td><td>creditCard.account_name</td></tr>
+<tr><td>Holder</td><td>creditCard.holder</td></tr>
+<tr><td>AccountNumber</td><td>creditCard.account_number</td></tr>
+<tr><td>Type</td><td>creditCard.type</td></tr>
+<tr><td>FromDate</td><td>creditCard.from_date</td></tr>
+<tr><td>LastUpdatedUtc</td><td>creditCard.last_updated_utc</td></tr>
+<tr><td>CreditLimit</td><td>creditCard.credit_limit</td></tr>
+<tr><td>RunningBalance</td><td>creditCard.running_balance</td></tr>
+<tr><td>DebitsSum</td><td>creditCard.debits_sum</td></tr>
+<tr><td>DebitsCount</td><td>creditCard.debits_count</td></tr>
+<tr><td>CreditsSum</td><td>creditCard.credits_sum</td></tr>
+<tr><td>CreditsCount</td><td>creditCard.credits_count</td></tr>
+<tr><td>CurrencyIso</td><td>creditCard.currency_iso</td></tr>
+<tr><td>Transactions</td><td>creditCard.transactions</td></tr>
+</table>
+
 ####FinancialProvider ([documentation link](http://www.miicard.com/developers/financial-api#FinancialProvider))
 
 <table>
 <tr><th>API data-type property</td><th>Python equivalent (given `provider` instance of `FinancialProvider`)</th></tr>
 <tr><td>ProviderName</td><td>provider.provider_name</td></tr>
 <tr><td>FinancialAccounts</td><td>provider.financial_accounts</td></tr>
+<tr><td>FinancialCreditCards</td><td>provider.financial_credit_cards</td></tr>
 </table>
 
 ####FinancialRefreshStatus ([documentation link](http://www.miicard.com/developers/financial-api#FinancialRefreshStatus))
