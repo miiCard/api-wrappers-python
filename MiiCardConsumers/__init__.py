@@ -171,6 +171,45 @@ class WebPropertyType(object):
     """Indicates that the WebProperty relates to a website"""
     WEBSITE = 1
 
+class CreditBureauVerification(object):
+    """Wraps credit bureau verification data"""
+
+    def __init__(
+                 self,
+                 data,
+                 last_verified
+                 ):
+
+        self.data = data
+        self.last_verified = last_verified
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a CreditBureauVerification object from a dictionary of parameters"""
+
+        return CreditBureauVerification(
+                                      dict.get('Data', None),
+                                      Util.try_parse_datetime_from_json_string(dict.get('LastVerified', None))
+                                      )
+
+class CreditBureauRefreshStatus(object):
+    """Wraps the state of a credit bureau refresh request"""
+
+    def __init__(
+                 self,
+                 state
+                 ):
+
+        self.state = state
+
+    @staticmethod
+    def FromDict(dict):
+        """Builds and returns a CreditBureauRefreshStatus object from a dictionary of parameters"""
+
+        return FinancialRefreshStatus(
+                                      dict.get('State', RefreshState.UNKNOWN)
+                                      )
+
 class MiiUserProfile(object):
     """Represents the subset of a miiCard user's identity that they have agreed to share"""
 
@@ -197,7 +236,8 @@ class MiiUserProfile(object):
                  has_public_profile,
                  public_profile,
                  date_of_birth,
-                 age
+                 age,
+                 credit_bureau_verification
                  ):
 
         self.username = username
@@ -222,6 +262,7 @@ class MiiUserProfile(object):
         self.public_profile = public_profile
         self.date_of_birth = date_of_birth
         self.age = age
+        self.credit_bureau_verification = credit_bureau_verification
 
     @staticmethod
     def FromDict(dict):
@@ -233,6 +274,7 @@ class MiiUserProfile(object):
         identities = dict.get('Identities', None)
         web_properties = dict.get('WebProperties', None)
         public_profile = dict.get('PublicProfile', None)
+        credit_bureau_verification = dict.get('CreditBureauVerification', None)
 
         if emails:
             emails_parsed = []
@@ -274,6 +316,11 @@ class MiiUserProfile(object):
         else:
             public_profile_parsed = None
 
+        if credit_bureau_verification:
+            credit_bureau_verification_parsed = CreditBureauVerification.FromDict(credit_bureau_verification)
+        else:
+            credit_bureau_verification_parsed = None
+
         return MiiUserProfile(
                               dict.get('Username', None),
                               dict.get('Salutation', None),
@@ -296,7 +343,8 @@ class MiiUserProfile(object):
                               dict.get('HasPublicProfile', None),
                               public_profile_parsed,
                               Util.try_parse_datetime_from_json_string(dict.get('DateOfBirth', None)),
-                              dict.get('Age', None)
+                              dict.get('Age', None),
+                              credit_bureau_verification_parsed
                               )
 
 class FinancialRefreshStatus(object):
@@ -907,6 +955,28 @@ class MiiCardOAuthClaimsService(MiiCardOAuthServiceBase):
                                   MiiCardServiceUrls.get_claims_method_url('GetAuthenticationDetails'),
                                   post_params,
                                   AuthenticationDetails.FromDict
+                                  )
+
+    def is_credit_bureau_refresh_in_progress(self):
+        """
+        Returns whether the miiCard user's credit bureau data is currently being refreshed by miiCard's data provider
+        """
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('IsCreditBureauRefreshInProgress'),
+                                  None,
+                                  None
+                                  )
+
+    def refresh_credit_bureau_data(self):
+        """
+        Makes a request to miiCard's data provider to refresh the credit bureau data of a miiCard user, and returns the result
+        """
+
+        return super(MiiCardOAuthClaimsService, self)._make_request(
+                                  MiiCardServiceUrls.get_claims_method_url('RefreshCreditBureauData'),
+                                  None,
+                                  CreditBureauRefreshStatus.FromDict
                                   )
 
 class MiiCardOAuthFinancialService(MiiCardOAuthServiceBase):

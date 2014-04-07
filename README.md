@@ -66,6 +66,8 @@ The following list is provided as a convenient cheat-sheet, and maps the API's m
 <tr><td>GetIdentitySnapshotDetails</td><td>api.get_identity_snapshot_details()<br /><b>Or, for a specific snapshot:</b><br />api.get_identity_snapshot_details(snapshot_id)</td></tr>
 <tr><td>IsSocialAccountAssured</td><td>api.is_social_account_assured(social_account_id, social_account_type)</td></tr>
 <tr><td>IsUserAssured</td><td>api.is_user_assured()</td></tr>
+<tr><td>IsCreditBureauRefreshInProgress</td><td>api.is-credit-bureau-refresh-in-progress()</td></tr>
+<tr><td>RefreshCreditBureauData</td><td>api.refresh-credit-bureau-data()</td></tr>
 </table>
 
 ####Financial API ([documentation link](http://www.miicard.com/developers/financial-api))
@@ -223,6 +225,7 @@ If you need to hash an identifier you can use the `MiiCardDirectoryService.hash_
 <tr><td>IdentityAssured</td><td>profile.identity_assured</td></tr>
 <tr><td>HasPublicProfile</td><td>profile.has_public_profile</td></tr>
 <tr><td>PublicProfile</td><td>profile.public_profile</td></tr>
+<tr><td>CreditBureauVerification</td><td>profile.credit-bureau-verification</td></tr>
 </table>
 
 ####PhoneNumber ([documentation link](http://www.miicard.com/developers/claims-api#PhoneNumber))
@@ -282,6 +285,19 @@ If you need to hash an identifier you can use the `MiiCardDirectoryService.hash_
 <tr><th>API data-type property</th><th>Python equivalent</th></tr>
 <tr><td>Domain</td><td>WebPropertyType.DOMAIN</td></tr>
 <tr><td>Website</td><td>WebPropertyType.WEBSITE</td></tr>
+</table>
+
+####Model\CreditBureauVerification ([documentation link](http://www.miicard.com/developers/claims-api#CreditBureauVerification))
+<table>
+<tr><th>API data-type property</th><th>Python equivalent (given `verification` instance of CreditBureauVerification)</th></tr>
+<tr><td>Data</td><td>verification.data</td></tr>
+<tr><td>LastVerified</td><td>verification.last_verified</td></tr>
+</table>
+
+####Model\CreditBureauRefreshStatus ([documentation link](http://www.miicard.com/developers/claims-api#CreditBureauRefreshStatus))
+<table>
+<tr><th>API data-type property</th><th>Python equivalent (given `status` instance of `CreditBureauRefreshStatus`)</th></tr>
+<tr><td>State</td><td>status.state</td></tr>
 </table>
 
 ###Data types - Financial API

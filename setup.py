@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='MiiCardConsumers',
-    version='1.6.0',
+    version='1.7.0',
     author='Paul O''Neill, Peter Sanderson',
     author_email='info@miicard.com',
     packages=['MiiCardConsumers', 'MiiCardConsumers.test'],
